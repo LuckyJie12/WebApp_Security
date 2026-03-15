@@ -1,0 +1,85 @@
+﻿@page
+@model WebApp_Security.Pages.HRManagerModel
+@{
+    ViewData["Title"] = "人力资源管理";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h3 class="card-title mb-3">@ViewData["Title"]</h3>
+
+                    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+                    {
+                        <div class="alert alert-success" role="alert">@Model.StatusMessage</div>
+                    }
+
+                    <h5>员工列表</h5>
+                    <div class="table-responsive mb-3">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Id</th>
+                                    <th>姓名</th>
+                                    <th>部门</th>
+                                    <th>角色</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var e in Model.Employees)
+                                {
+                                    <tr>
+                                        <td>@e.Id</td>
+                                        <td>@e.Name</td>
+                                        <td>@e.Department</td>
+                                        <td>@e.Role</td>
+                                        <td>
+                                            <form method="post" asp-page-handler="Delete" class="d-inline">
+                                                <input type="hidden" name="id" value="@e.Id" />
+                                                <button type="submit" class="btn btn-danger btn-sm">删除</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h5>添加员工</h5>
+                    <form method="post" asp-page-handler="Add" novalidate>
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="NewEmployee.Name" class="form-label">姓名</label>
+                                <input asp-for="NewEmployee.Name" class="form-control" />
+                                <span asp-validation-for="NewEmployee.Name" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="NewEmployee.Department" class="form-label">部门</label>
+                                <input asp-for="NewEmployee.Department" class="form-control" />
+                                <span asp-validation-for="NewEmployee.Department" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="NewEmployee.Role" class="form-label">角色</label>
+                                <input asp-for="NewEmployee.Role" class="form-control" />
+                                <span asp-validation-for="NewEmployee.Role" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <button type="submit" class="btn btn-primary">添加</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

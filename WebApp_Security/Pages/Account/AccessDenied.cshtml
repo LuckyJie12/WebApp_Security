@@ -1,0 +1,30 @@
+﻿@page
+@model WebApp_Security.Pages.Account.AccessDeniedModel
+@{
+    ViewData["Title"] = "拒绝访问";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h3 class="card-title mb-3">@ViewData["Title"]</h3>
+                    <div class="mb-3">
+                        <span class="display-1 text-warning">⚠️</span>
+                    </div>
+                    <p class="lead">您没有权限访问此资源。</p>
+
+                    <p class="mb-4">如果您认为这是错误的，请尝试以下操作：</p>
+
+                    <div class="d-flex justify-content-center gap-2">
+                        <a asp-page="/Account/Login" class="btn btn-primary">重新登录</a>
+                        <a asp-page="/Index" class="btn btn-outline-secondary">返回首页</a>
+                    </div>
+
+                    <p class="text-muted mt-3 small">如需帮助，请联系系统管理员。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

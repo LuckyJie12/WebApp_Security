@@ -1,0 +1,58 @@
+﻿@page
+@model WebApp_Security.Pages.SettingsModel
+@{
+    ViewData["Title"] = "站点设置";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h3 class="card-title mb-3">@ViewData["Title"]</h3>
+
+                    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+                    {
+                        <div class="alert alert-success" role="alert">@Model.StatusMessage</div>
+                    }
+
+                    <form method="post" novalidate>
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.SiteTitle" class="form-label">站点标题</label>
+                            <input asp-for="Input.SiteTitle" class="form-control" />
+                            <span asp-validation-for="Input.SiteTitle" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.SupportEmail" class="form-label">支持邮箱</label>
+                            <input asp-for="Input.SupportEmail" class="form-control" />
+                            <span asp-validation-for="Input.SupportEmail" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input asp-for="Input.AllowRegistration" class="form-check-input" />
+                            <label asp-for="Input.AllowRegistration" class="form-check-label">允许用户注册</label>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.DefaultUserRole" class="form-label">默认用户角色</label>
+                            <input asp-for="Input.DefaultUserRole" class="form-control" />
+                            <span asp-validation-for="Input.DefaultUserRole" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">保存</button>
+                            <a asp-page="/Index" class="btn btn-link">取消</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
