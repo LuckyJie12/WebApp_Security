@@ -56,7 +56,7 @@ namespace WebApp_Security.Pages.Account
                 return RedirectToPage("/Index");
             }
 
-            ModelState.AddModelError(string.Empty, "�û��������벻��ȷ��");
+            ModelState.AddModelError(string.Empty, "登录失败，用户或者密码输入错误！");
             return Page();
         }
     }
