@@ -4,18 +4,11 @@ using Newtonsoft.Json;
 using System.Net.Http.Headers;
 using WebApp_Security.Authorization;
 using WebApp_Security.DTO;
-using WebApp_Security.Pages.Account;
 
 namespace WebApp_Security.Pages
 {
-    public class WeatherForecastModel : PageModel
+    public class WeatherForecastModel(IHttpClientFactory httpClientFactory) : PageModel
     {
-        private readonly IHttpClientFactory httpClientFactory;
-
-        public WeatherForecastModel(IHttpClientFactory httpClientFactory)
-        {
-            this.httpClientFactory = httpClientFactory;
-        }
         [BindProperty]
         public List<WeatherForecastDTO>? WeatherForecastItems { get; set; }
         public string? ErrorMessage { get; set; }
@@ -23,8 +16,8 @@ namespace WebApp_Security.Pages
         {
             try
             {
-                JwtToken? token = new JwtToken();
-                string strTokenObj = HttpContext.Session.GetString("assess_token") ?? string.Empty;
+                var token = new JwtToken();
+                var strTokenObj = HttpContext.Session.GetString("assess_token") ?? string.Empty;
                 if (string.IsNullOrEmpty(strTokenObj))
                 {
                     token = await Authenticate(token);
@@ -53,7 +46,7 @@ namespace WebApp_Security.Pages
             var client = httpClientFactory.CreateClient("OurWebAPI");
             var res = await client.PostAsJsonAsync("Auth", new Credential { Username = "admin", Password = "123" });
             res.EnsureSuccessStatusCode();
-            string jsonJwt = await res.Content.ReadAsStringAsync();
+            var jsonJwt = await res.Content.ReadAsStringAsync();
             if (!string.IsNullOrEmpty(jsonJwt))
             {
                 HttpContext.Session.SetString("assess_token", jsonJwt);
