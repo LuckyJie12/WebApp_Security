@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using WebApp_Security.Authorization;
 
@@ -26,7 +24,7 @@ namespace WebApp_Security.Pages.Account
             }
 
             // Simple example authentication - replace with real authentication logic
-            if (Credential.Username == "admin" && Credential.Password == "123")
+            if (Credential is { Username: "admin", Password: "123" })
             {
                 // On success redirect to home page
                 var claims = new List<Claim>
@@ -45,7 +43,6 @@ namespace WebApp_Security.Pages.Account
                 var authProperties = new AuthenticationProperties
                 {
                     IsPersistent = Credential.RememberMe,
-                    // RefreshIssuedUtc = true // optional
                 };
 
                 await HttpContext.SignInAsync("MyCookieAuth", claimsPrincipal, authProperties);
@@ -59,7 +56,7 @@ namespace WebApp_Security.Pages.Account
                 return RedirectToPage("/Index");
             }
 
-            ModelState.AddModelError(string.Empty, "ÓÃ»§Ãû»òÃÜÂë²»ÕýÈ·¡£");
+            ModelState.AddModelError(string.Empty, "ï¿½Ã»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ë²»ï¿½ï¿½È·ï¿½ï¿½");
             return Page();
         }
     }
