@@ -1,508 +1,92 @@
-ASP.NET Core 身份认证与授权
+# ASP.NET Core 身份认证与授权 示例
 
-# WebApp_Security
+这是一个教学示例仓库，包含两个主要子项目：
 
-## 项目简介
+- `WebApp_Security`：基于 Razor Pages 的示例（Cookie Authentication、声明`Claims`、策略`Policy`、自定义 Authorization Handler、Session、IHttpClientFactory）。
+- `WebAPI_Security`：基于 Controllers 的示例（JWT 验证、JwtBearer、Policy 授权）。
 
-WebApp_Security 是一个基于 **ASP.NET Core Razor Pages** 的 Web 应用示例，主要用于演示 **认证（Authentication）**、**授权（Authorization）** 和 **安全策略（Policy-based Authorization）** 的实现。
+本仓库适合用于学习 ASP.NET Core 中的认证与授权实现以及生产环境下的若干安全注意事项。
 
-该项目通过 **Cookie Authentication** 实现用户登录状态管理，并结合 **声明**`Claims`和 **策略**`Policy`控制用户访问权限。同时使用 **HttpClient** 调用外部 WebAPI，并通过 **Session** 管理部分用户状态。
+----------------
 
-------
+## 目录
 
-## 技术栈
+- 项目结构
+- 快速开始
+- 配置说明
+- 本地运行（开发）
+- 示例请求（curl）
+- 关键实现文件
+- 安全与生产建议
+- 贡献与许可证
 
-- ASP.NET Core Razor Pages
-- Cookie Authentication
-- Policy-based Authorization
-- Claims-based Identity
-- HttpClientFactory
-- Session State
-- Dependency Injection
+----------------
 
-------
+## 项目结构（概览）
 
-## 项目主要功能
+- `WebApp_Security/` — Razor Pages 示例（前端登录、Cookie、Policy、Session、调用 WebAPI）。
+- `WebAPI_Security/` — Web API 示例（JWT 签发与验证、Policy 授权）。
+- `WebAPP/` — 另一个示例应用（参考）。
 
-### 1. 用户认证（Authentication）
+----------------
 
-项目使用 **Cookie Authentication** 进行身份验证。
+## 快速开始（本地开发）
 
-配置：
+先决条件
 
-```csharp
-builder.Services.AddAuthentication("MyCookieAuth")
-    .AddCookie("MyCookieAuth", options =>
-{
-    options.Cookie.Name = "MyCookieAuth";
-    options.LoginPath = "/Account/Login";
-    options.ExpireTimeSpan = TimeSpan.FromSeconds(200);
-});
+- .NET SDK 10 或更高（项目目标 `net10.0`）。
+
+克隆并在开发模式下运行（示例端口以项目配置为准）：
+
+```powershell
+git clone <repo-url>
+cd WebApp_Security
+dotnet restore
+# 启动 WebAPI
+dotnet run --project WebAPI_Security --urls "https://localhost:7078"
+# 在另一个终端启动 WebApp
+dotnet run --project WebApp_Security --urls "https://localhost:7210"
 ```
 
-功能说明：
+请以 `launchSettings.json` 或运行输出的 URL 为准。
 
-- 登录成功后，服务器生成认证 Cookie。
-- 浏览器保存 Cookie 用于后续请求。
-- 如果访问受保护页面但未登录，系统会自动重定向到：
+----------------
 
-```
-/Account/Login
-```
+## 配置说明
 
-Cookie 有效期为：
+- `SecretKey`（用于 `WebAPI_Security` 的对称签名 Key）：必须至少 32 字符，且不要将真实秘钥提交到仓库。开发时可使用 `appsettings.Development.json` 或 `dotnet user-secrets` 存储：
 
-```
-200 秒
-```
+    ```powershell
+    dotnet user-secrets set "SecretKey" "your_32+_char_secret_here" --project WebAPI_Security
+    ```
 
-------
+- `Cookie`（在 `WebApp_Security` 中配置）：生产环境请设置 `Cookie.SecurePolicy = CookieSecurePolicy.Always`、适当的 `SameSite` 策略与 `HttpOnly` 为 true。
 
-## 2. 用户授权（Authorization）
+----------------
 
-项目采用 **Policy-based Authorization**。
+## 本地运行（开发流程）
 
-配置：
+1. 配置 `SecretKey`（见上）。
+2. 启动 `WebAPI_Security`，再启动 `WebApp_Security`。
+3. 打开浏览器访问前端，使用示例登录（或生成含示例 Claim 的 JWT），前端将调用 API 示范受保护资源访问。
 
-```csharp
-builder.Services.AddAuthorizationBuilder()
-```
+----------------
 
-系统定义了三个访问策略。
+## 示例请求（curl）
 
-------
+- 公共接口（需要先获取Token）：
 
-### Policy 1：AdminOnly
-
-```csharp
-.AddPolicy("AdminOnly", policy => policy.RequireClaim("Admin"))
+```bash
+curl https://localhost:7078/WeatherForecast
 ```
 
-访问要求：
+- 受保护接口（需要 Bearer Token）：
 
-用户必须拥有 **Admin Claim**。
-
-示例：
-
-```
-Admin = true
+```bash
+curl -H "Authorization: Bearer {your_jwt_token}" https://localhost:7078/WeatherForecast/secure
 ```
 
-------
-
-### Policy 2：HRManagerOnly
-
-```csharp
-.AddPolicy("HRManagerOnly", policy =>
-    policy.RequireClaim("Department", "HR")
-          .RequireClaim("Manager")
-          .Requirements.Add(new HRManagerProbationRequirement(3)))
-```
-
-访问要求：
-
-用户必须同时满足以下条件：
-
-1. Department = HR
-2. 具有 Manager Claim
-3. 通过自定义授权规则 `HRManagerProbationRequirement`
-
-该规则用于判断：
-
-```
-HR Manager 入职是否超过 3 个月
-```
-
-------
-
-### Policy 3：MustBelongToHRDepartment
-
-```csharp
-.AddPolicy("MustBelongToHRDepartment",
-    policy => policy.RequireClaim("Department","HR"));
-```
-
-访问要求：
-
-用户必须属于 **HR 部门**。
-
-------
-
-## 3. 自定义授权处理器
-
-项目实现了一个自定义 Authorization Handler：
-
-```
-HRManagerProbationHandler
-```
-
-注册方式：
-
-```csharp
-builder.Services.AddSingleton<IAuthorizationHandler, HRManagerProbationHandler>();
-```
-
-作用：
-
-判断 HR Manager 是否满足试用期要求。
-
-例如：
-
-```C#
-public class HRManagerProbationHandler : AuthorizationHandler<HRManagerProbationRequirement>
-{
-    protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, HRManagerProbationRequirement requirement)
-    {
-        if (context.User.HasClaim(c => c.Type == "Department" && c.Value == "HR") &&
-            context.User.HasClaim(c => c.Type == "Manager" && c.Value == "true") &&
-            context.User.HasClaim(c => c.Type == "DepartmentDate"))
-        {
-            var departmentDateClaim = context.User.FindFirst(c => c.Type == "DepartmentDate");
-            if (DateTime.TryParse(departmentDateClaim?.Value, out var departmentDate))
-            {
-                var monthsInDepartment = ((DateTime.Now - departmentDate).Days) / 30;
-                if (monthsInDepartment >= requirement.ProbationMonths)
-                {
-                    context.Succeed(requirement);
-                }
-            }
-        }
-        return Task.CompletedTask;
-    }
-}
-```
-
-如果入职时间超过策略设置的月份数，则授权成功。
-
-------
-
-## 4. HttpClient 调用 WebAPI
-
-项目使用 **IHttpClientFactory** 调用外部 Web API。
-
-配置：
-
-```csharp
-builder.Services.AddHttpClient("OurWebAPI", client =>
-{
-    client.BaseAddress = new Uri("https://localhost:7078");
-});
-```
-
-功能：
-
-WebApp → 调用 WebAPI 获取数据，例如：
-
-```
-WeatherForecast API
-```
-
-优点：
-
-- 避免 Socket Exhaustion
-- 统一管理 HTTP 请求
-- 支持 DI 注入
-
-------
-
-## 5. Session 管理
-
-项目启用了 **Session State**：
-
-```csharp
-builder.Services.AddSession(options =>
-{
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
-});
-```
-
-配置说明：
-
-| 配置        | 说明                             |
-| ----------- | -------------------------------- |
-| HttpOnly    | Cookie 不允许 JS 访问            |
-| IsEssential | 即使用户未同意 Cookie 也允许使用 |
-| IdleTimeout | 30 分钟无操作自动过期            |
-
-启用 Session Middleware：
-
-```csharp
-app.UseSession();
-```
-
-------
-
-## 6. HTTP 请求管道
-
-项目使用以下 Middleware Pipeline：
-
-```
-HTTPS Redirection
-        ↓
-Routing
-        ↓
-Authentication
-        ↓
-Authorization
-        ↓
-Session
-        ↓
-Razor Pages
-```
-
-关键代码：
-
-```csharp
-app.UseAuthentication();
-app.UseAuthorization();
-app.UseSession();
-```
-
-注意：
-
-Authentication 必须在 Authorization 之前。
-
-------
-
-## 7. 静态资源
-
-项目通过以下方式提供静态文件：
-
-```csharp
-app.MapStaticAssets();
-app.MapRazorPages()
-   .WithStaticAssets();
-```
-
-支持资源：
-
-```
-CSS
-JavaScript
-Images
-Fonts
-```
-
-------
-
-## 安全特性总结
-
-本项目实现了以下安全机制：
-
-- Cookie Authentication
-- Claims-based Authorization
-- Policy-based Authorization
-- Custom Authorization Handler
-- Session Security
-- HTTPS Enforcement
-
-------
-
-## 适用场景
-
-该项目适合用于学习：
-
-- ASP.NET Core Security
-- Web 应用身份认证
-- Policy Authorization
-- 企业级权限控制设计
-
-------
-
-下面是根据你提供的 **WebAPI Program.cs** 生成的一份完整 **README 文档示例**，专门针对你的 JWT WebAPI 项目。它描述了项目结构、JWT 认证、Policy 授权以及使用方式。
-
-------
-
-# WebAPI_Security
-
-## 项目简介
-
-WebAPI_Security 是一个基于 **ASP.NET Core WebAPI** 的示例项目，演示如何使用 **JWT（JSON Web Token）认证** 和 **Policy-based 授权** 来保护 API 接口。
-
-项目特点：
-
-- 支持 JWT 登录和验证
-- 支持基于**声明** `Claims` 的 **策略`**Policy` 授权
-- 使用 **Symmetric Key** 签名 JWT
-- 使用 **ASP.NET Core Controllers** 构建 API
-
-------
-
-# 技术栈
-
-- ASP.NET Core 10+
-- JSON Web Token (JWT)
-- JwtBearer Authentication
-- Policy-based Authorization
-- Symmetric Security Key
-
-------
-
-# 项目主要功能
-
-## 1. JWT 认证（Authentication）
-
-项目通过 **JwtBearer** 中间件验证请求中的 JWT Token。
-
-配置代码：
-
-```csharp
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultSignInScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer("Bearer", options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateAudience = false,
-        ValidateIssuer = false,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["SecretKey"]!)
-        ),
-        ClockSkew = TimeSpan.Zero
-    };
-});
-```
-
-说明：
-
-- **IssuerSigningKey**: 使用 `appsettings.json` 中配置的 SecretKey（必须 ≥32 字符）
-- **ValidateLifetime = true**: 验证 Token 是否过期
-- **ClockSkew = 0**: 不允许额外时间偏差，严格验证过期时间
-- 默认 **AuthenticateScheme/ChallengeScheme** 都是 JwtBearer
-
-> 如果客户端请求缺少或无效 JWT，会返回 401 Unauthorized。
-
-------
-
-## 2. Policy 授权（Authorization）
-
-项目定义了一个简单的 Policy：
-
-```csharp
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("AdminOnly", policy => policy.RequireClaim("Admin"));
-});
-```
-
-- **AdminOnly**: 只有 Token 中包含 **Admin Claim** 的用户可以访问
-- 在 Controller 上使用：
-
-```csharp
-[Authorize(Policy = "AdminOnly")]
-[HttpGet("secure-data")]
-public IActionResult GetSecureData()
-{
-    return Ok("This is admin only data");
-}
-```
-
-------
-
-## 3. 中间件配置（Pipeline）
-
-请求处理顺序：
-
-```text
-HTTPS Redirection
-        ↓
-Authentication (JwtBearer)
-        ↓
-Authorization (Policy)
-        ↓
-Controller
-```
-
-对应代码：
-
-```csharp
-app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
-```
-
-⚠️ **顺序很重要**：`UseAuthentication()` 必须在 `UseAuthorization()` 之前。
-
-------
-
-## 4. SecretKey 配置
-
-在 `appsettings.json` 中配置：
-
-```json
-{
-  "SecretKey": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-}
-```
-
-- 必须 ≥32 字符，符合 HmacSha256 安全要求
-- Token 生成时和验证时都要用同一个 Key
-
-------
-
-## 5. Controller 示例
-
-```csharp
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-
-[ApiController]
-[Route("[controller]")]
-public class WeatherForecastController : ControllerBase
-{
-    [HttpGet]
-    public IActionResult Get() => Ok(new[] { "Sunny", "Cloudy", "Rainy" });
-
-    [Authorize(Policy = "AdminOnly")]
-    [HttpGet("secure")]
-    public IActionResult GetSecure() => Ok("This is Admin only data");
-}
-```
-
-- 普通接口：无需 Token，可直接访问
-- 受保护接口：需要 JWT 且包含 Admin Claim
-
-------
-
-## 6. 请求示例
-
-### 获取普通数据
-
-```http
-GET https://localhost:7078/WeatherForecast
-```
-
-无需 Token，返回天气数据列表。
-
-------
-
-### 获取 Admin 数据
-
-```http
-GET https://localhost:7078/WeatherForecast/secure
-Authorization: Bearer {your_jwt_token_here}
-```
-
-- Token 必须包含 `Admin` Claim
-- 否则返回 401 Unauthorized
-
-------
-
-## 7. Token 生成（与 WebApp_Security 配合）
-
-WebAPI 期望使用 **HmacSha256** 对称密钥签名的 JWT：
-
-- SecretKey 必须与 WebApp_Security 中生成 Token 时使用的一致
-- Claims 示例：
+示例 Claims（JWT）
 
 ```json
 {
@@ -512,30 +96,37 @@ WebAPI 期望使用 **HmacSha256** 对称密钥签名的 JWT：
 }
 ```
 
-- 生成 Token 可使用 `JsonWebTokenHandler` 或 `JwtSecurityTokenHandler`
+生成 Token 可使用项目内工具、`JwtSecurityTokenHandler`、`Postman` 或线上工具（仅用于测试）。确保生成时使用与验证端一致的 `SecretKey`。
 
-------
+----------------
 
-## 8. 安全特性总结
+## 关键实现文件（参考）
 
-- **JWT Authentication**: 客户端通过 Bearer Token 访问受保护 API
-- **Policy Authorization**: 根据 Claims 控制访问权限
-- **Token 验证**: 包括签名、过期时间、Claim 验证
+- `WebApp_Security/Authorization/Credential.cs`
+- `WebApp_Security/Authorization/JwtToken.cs`
+- `WebApp_Security/Authorization/HRManagerProbationRequirement.cs`
+- `WebAPI_Security/Controllers/WeatherForecastController.cs`
+- 配置相关见各项目的 `Program.cs` 和 `appsettings*.json`
 
-适用于：
+（在需要时可加上具体文件链接与行号，便于定位实现）
 
-- 学习 ASP.NET Core Security
-- 企业级权限控制示例
-- WebApp + WebAPI 分离架构
+----------------
 
+## 安全与生产建议（必须阅读）
 
+- 绝不将 `SecretKey` 或任何敏感凭据提交到源码控制；生产环境请使用密钥管理服务（例如 Azure Key Vault、AWS Secrets Manager、HashiCorp Vault）。
+- 在生产中强制 HTTPS，并为 Cookie 设置 `Secure`、`HttpOnly`、合适的 `SameSite`。
+- SecretKey 最小长度建议 32 字符并定期轮换；尽量使用托管的密钥轮换方案。
+- 设计合理的 JWT 过期与刷新策略，不要长期使用无限期 Token；`ClockSkew = TimeSpan.Zero` 会严格验证到期时间，注意客户端时间误差。
+- 使用 `IHttpClientFactory` 管理 HTTP 客户端，配置超时与重试策略以防止资源耗尽。
+- 对敏感操作和鉴权失败进行审计日志记录，但避免在日志中输出敏感信息（如完整 Token）。
 
-## 开发和贡献
+----------------
 
-- 该仓库为学习演示，欢迎 fork 并提出 PR。
-- 建议：把示例凭据替换为真实认证（Identity/外部登录）、将内存存储改为数据库（EF Core）、完善输入验证与错误处理。
+## 贡献与许可证
 
-## 许可证
+- 欢迎 Fork 和 PR。建议将演示凭据替换为真实认证（Identity/外部登录）、将内存存储改为数据库（EF Core）、并完善输入校验与错误处理。
+- 本仓库采用 MIT 许可证。
 
- MIT 许可证
+----------------
 
