@@ -491,5 +491,13 @@ WebAPI 期望使用 **HmacSha256** 对称密钥签名的 JWT：
 
 ------
 
+# WebAPP
 
+## 依赖Nugget包
+
+- Microsoft.AspNetCore.Identity.ui package
+- Microsoft.AspNetCore.Identity.EntityFrameworkCore
+- Microsoft.EntityFrameworkCore.SqlServer
+- Microsoft.EntityFrameworkCore.Tools
+- Microsoft.EntityFrameworkCore.Design
 
